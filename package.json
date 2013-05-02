@@ -1,0 +1,23 @@
+{
+  "name": "bitcoin-node",
+  "version": "0.0.0",
+  "description": "",
+  "main": "",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "binary": "~0.3.0"
+  },
+  "devDependencies": {
+    "coffee-script": "~1.6.2",
+    "mocha": "~1.9.0"
+  },
+  "scripts": {
+    "test": "cake test",
+    "prepublish": "cake build"
+  },
+  "repository": "",
+  "author": "",
+  "license": ""
+}
