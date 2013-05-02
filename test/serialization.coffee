@@ -20,6 +20,13 @@ VAR_INT_CASES = [
   [[0xffffffff, 0xffffffff], [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]]
 ]
 
+describe "VarInt", ->
+  describe '#serialize()', ->
+  for c in VAR_INT_CASES
+    do (c) ->
+      it "should serialize #{c[0].toString(16)} correctly", ->
+        assert.bufferEqual new VarInt().serialize(c[0]), new Buffer(c[1])
+
 LONG_A_STRING = Array(0xfd+1).join("a")
 VAR_STR_CASES = [
   # length 0
@@ -30,20 +37,12 @@ VAR_STR_CASES = [
   [LONG_A_STRING, [0xfd, 0xfd, 0x00].concat(LONG_A_STRING.split("").map((l) -> l.charCodeAt(0)))]
 ]
 
-describe "VarInt", ->
-  describe '#serialize()', ->
-  for c in VAR_INT_CASES
-    do (c) ->
-      it "should serialize #{c[0].toString(16)} correctly", ->
-        assertBufferEqual new VarInt().serialize(c[0]), new Buffer(c[1])
-
-
 describe "VarStr", ->
   describe '#serialize()', ->
   for c in VAR_STR_CASES
     do (c) ->
       it "should serialize '#{c[0]}' correctly", ->
-        assertBufferEqual new VarStr().serialize(c[0]), new Buffer(c[1])
+        assert.bufferEqual new VarStr().serialize(c[0]), new Buffer(c[1])
 
 describe "NetAddr", ->
   describe '#serialize()', ->
@@ -52,7 +51,7 @@ describe "NetAddr", ->
         services: 0x01
         host: [10,0,0,1]
         port: 8333
-      assertBufferEqual actual, convertToBuffer(NET_ADDR_EXAMPLE)
+      assert.bufferEqual actual, NET_ADDR_EXAMPLE
 
 describe "Message", ->
   describe '#serialize()', ->
@@ -76,7 +75,7 @@ describe "Message", ->
           nonce: new Buffer("DD9D202C3AB45713", "hex")
           user_agent: ""
           start_height: 98645
-      assertBufferEqual actual, convertToBuffer(VERSION_EXAMPLE_OLD)
+      assert.bufferEqual actual, VERSION_EXAMPLE_OLD
 
     it "should serialize 'version' (with hash) correctly", ->
       actual = new Message().serialize
@@ -97,23 +96,25 @@ describe "Message", ->
           nonce: new Buffer("3B2EB35D8CE61765", "hex")
           user_agent: "/Satoshi:0.7.2/"
           start_height: 212672
-      assertBufferEqual actual, convertToBuffer(VERSION_EXAMPLE)
+      assert.bufferEqual actual, VERSION_EXAMPLE
 
     it "should serialize 'verack' correctly", ->
       actual = new Message().serialize
         magic: 0xD9B4BEF9
         command: "verack"
-      assertBufferEqual actual, convertToBuffer(VERACK_EXAMPLE)
+      assert.bufferEqual actual, VERACK_EXAMPLE
 
+convertToBuffer = (array) ->
+  new Buffer(array.join("").replace(/[^0-9a-f]/ig, ""), "hex")
 
-NET_ADDR_EXAMPLE = [
+NET_ADDR_EXAMPLE = convertToBuffer [
   # Network address:
   "01 00 00 00 00 00 00 00                        " #- 1 (NODE_NETWORK: see services listed under version command)
   "00 00 00 00 00 00 00 00 00 00 FF FF 0A 00 00 01" #- IPv6: ::ffff:10.0.0.1 or IPv4: 10.0.0.1
   "20 8D                                          " #- Port 8333
 ]
 
-VERSION_EXAMPLE_OLD = [
+VERSION_EXAMPLE_OLD = convertToBuffer [
   # Message header:
   " F9 BE B4 D9                                                                  " #- Main network magic bytes
   " 76 65 72 73 69 6F 6E 00 00 00 00 00                                          " #- "version" command
@@ -130,12 +131,14 @@ VERSION_EXAMPLE_OLD = [
   " 55 81 01 00                                                                  " #- Last block sending node has is block #98645
 ]
 
-VERSION_EXAMPLE = [
+VERSION_EXAMPLE = convertToBuffer [
   # Message Header:
   " F9 BE B4 D9                                                                  " #- Main network magic bytes
   " 76 65 72 73 69 6F 6E 00 00 00 00 00                                          " #- "version" command
   " 64 00 00 00                                                                  " #- Payload is 100 bytes long
-  " 35 8D 49 32                                                                  " #- payload checksum
+  # NOTE: this checksum from the wiki appears to be incorrect
+  # " 35 8D 49 32                                                                  " #- payload checksum
+  " 3B 64 8D 5A                                                                  " #- payload checksum
   # Version message:
   " 62 EA 00 00                                                                  " #- 60002 (protocol version 60002)
   " 01 00 00 00 00 00 00 00                                                      " #- 1 (NODE_NETWORK services)
@@ -147,29 +150,10 @@ VERSION_EXAMPLE = [
   " C0 3E 03 00                                                                  " #- Last block sending node has is block #212672
 ]
 
-VERACK_EXAMPLE = [
+VERACK_EXAMPLE = convertToBuffer [
   # Message header:
   "F9 BE B4 D9                         " #- Main network magic bytes
   "76 65 72 61  63 6B 00 00 00 00 00 00" #- "verack" command
   "00 00 00 00                         " #- Payload is 0 bytes long
   "5D F6 E0 E2                         " #- Checksum
 ]
-
-convertToBuffer = (array) ->
-  new Buffer(array.join("").replace(/[^0-9a-f]/ig, ""), "hex")
-
-splitBuffer = (buffer, size) ->
-  for i in [0..buffer.length/size]
-    buffer.slice(i*size, Math.min(buffer.length, (i+1)*size))
-
-formatBuffer = (buffer) ->
-  (for row in splitBuffer(buffer, 8)
-    # (for col in splitBuffer(row, 8)
-      (for byte in row
-        (if byte < 0x10 then "0" else "") + byte.toString(16)
-      ).join(" ")
-    # ).join("  ")
-  ).join(" \n")
-
-assertBufferEqual = (actual, expected) ->
-  assert.equal formatBuffer(actual), formatBuffer(expected)

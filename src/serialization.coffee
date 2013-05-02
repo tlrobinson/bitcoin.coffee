@@ -1,9 +1,8 @@
 { Protocol, PInteger, PString, PBuffer, PRecord, Number64 } = require "./protocol"
 
 crypto = require "crypto"
-
-doubleSHA256 = (buffer) ->
-  crypto.createHash("sha256").update(crypto.createHash("sha256").update(buffer).digest()).digest()
+sha256 = (buffer) ->
+  crypto.createHash("sha256").update(buffer).digest()
 
 # Inventory Vector
 #   4   type          uint32_t  Identifies the object type linked to this inventory
@@ -80,8 +79,6 @@ class NetAddr extends PRecord
     )
     port: new PInteger(length: 2, u: true, le: false)
 
-MESSAGE_PROTOCOLS = {}
-
 # Message
 #   4   magic         uint32_t  Magic value indicating message origin network, and used to seek to next message when stream state is unknown
 #   12  command       char[12]  ASCII string identifying the packet content, NULL padded (non-NULL padding results in packet rejected)
@@ -95,8 +92,7 @@ class Message extends PRecord
     length: new PInteger(length: 4, u: true, le: true, value: -> @getLength("payload"))
     checksum: new PBuffer(length: 4, value: ->
       payload = @getSerialized("payload")
-      checksum = doubleSHA256(payload)
-      checksum.slice(0,4)
+      sha256(sha256(payload))[0..4]
     )
     payload: new Protocol(protocol: ->
       command = @getValue("command")
@@ -128,6 +124,7 @@ class Version extends PRecord
     user_agent: new VarStr()
     start_height: new PInteger(length: 4, le: true)
 
+MESSAGE_PROTOCOLS = {}
 MESSAGE_PROTOCOLS["version"] = new Version()
 MESSAGE_PROTOCOLS["verack"] = new PBuffer(length: 0)
 
